@@ -1,11 +1,12 @@
 const url = require('url')
+const fs = require('fs')
 const http = require('http')
 const https = require('https')
+const config = require('./config')
 const pages = require('./lib/staticPages')
 const util = require('./lib/utils')
 const Sessions = require('./lib/models/sessions')
-const config = require('./config')
-const fs = require('fs')
+const Brutes = require('./lib/models/brutes')
 
 function main () {
   const shield = require('./lib/shieldClient')
@@ -49,11 +50,12 @@ function main () {
     }
   })
 
+  Brutes.startTicking()
   setInterval(() => Sessions.cleanup(), 30000) // 30s update rate
 }
 
 function ServerCallback (request, response) {
-  var uri = url.parse(request.url).pathname
+  const uri = url.parse(request.url).pathname
   switch (uri.split('/')[1]) { // localhost vs 127.0.0.1 >.<
     case 'api': // Using localhost you get api
       require('./lib/apiServer')(request, response)
