@@ -3,6 +3,7 @@ const http = require('http')
 const https = require('https')
 const pages = require('./lib/staticPages')
 const util = require('./lib/utils')
+const Sessions = require('./lib/models/sessions')
 const config = require('./config')
 const fs = require('fs')
 
@@ -19,31 +20,8 @@ function main () {
   util.unit_test(this)
   // xsh.auth('test', 'muffin')
 
-  const sessionsDB = require('./lib/models/sessions')
-  const admins = require('./lib/models/admins')
-
-  function ClearOldSessions () {
-    for (var i = 0; i === admins.adminTokens.length; i++) {
-      if (Number(admins.adminExpire[i]) < Date.now()) {
-        delete admins.adminExpire[i]
-        delete admins.adminTokens[i]
-        util.log('Removed an adminToken', 2)
-      }
-    }
-
-    sessionsDB.remove().make(function (builder) {
-      builder.where('expiretime', '<', Date.now())
-      builder.callback(function (err, count) {
-        if (err) {
-          util.log("Can't remove sessions: " + String(err), 1)
-        }
-        if (count !== 0) {
-          util.log('Removed sessions: ' + String(count), 2)
-        }
-      })
-    })
-  }
-
+  // Should this be .init().then(() => do the rest)
+  // If the pages fail to cache, is it still helpful to start the server?
   pages.init()
 
   function SSLoptions () {
@@ -56,7 +34,7 @@ function main () {
 
   util.fileExists(config.SSL.key, sslkey => {
     if (sslkey && !config.Testing) {
-      https.createServer(SSLoptions(), TESTsubDomainSeperator).listen(config.Sockets.SSLPort)
+      https.createServer(SSLoptions(), ServerCallback).listen(config.Sockets.SSLPort)
       // @TODO This would be better handled at the web server level, or at least Cloudflare
       http.createServer((request, response) => { // Redirect http requests
         response.writeHead(301, { Location: 'https://' + config.FQDN + String(url.parse(request.url).pathname) })
@@ -65,16 +43,16 @@ function main () {
       util.log('Web server running at => https://127.0.0.1:443/', 2)
       util.log('Redirect server running at => http://127.0.0.1:80/', 2)
     } else {
-      http.createServer(TESTsubDomainSeperator).listen(config.Sockets.TestingPort)
+      http.createServer(ServerCallback).listen(config.Sockets.TestingPort)
       // util.log('Replica web server running at => http://127.0.0.1:' + String(config.Sockets.HTTPredirectPort) + '/', 2)
       util.log('Test web server running at => http://127.0.0.1:' + String(config.Sockets.TestingPort) + '/', 2)
     }
   })
 
-  setInterval(ClearOldSessions, 30000) // 30s update rate
+  setInterval(() => Sessions.cleanup(), 30000) // 30s update rate
 }
 
-function TESTsubDomainSeperator (request, response) {
+function ServerCallback (request, response) {
   var uri = url.parse(request.url).pathname
   switch (uri.split('/')[1]) { // localhost vs 127.0.0.1 >.<
     case 'api': // Using localhost you get api
@@ -86,6 +64,7 @@ function TESTsubDomainSeperator (request, response) {
   }
 }
 
+module.exports = main
 // if this file is being called directly
 if (require.main === module) {
   // start the server
