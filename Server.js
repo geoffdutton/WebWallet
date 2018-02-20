@@ -1,7 +1,7 @@
 const url = require('url')
 const http = require('http')
 const https = require('https')
-const pages = require('./lib/pages')
+const pages = require('./lib/staticPages')
 const util = require('./lib/utils')
 const config = require('./config')
 const fs = require('fs')
@@ -21,7 +21,6 @@ function main () {
 
   const sessionsDB = require('./lib/models/sessions')
   const admins = require('./lib/models/admins')
-// var brutesDB = nosql.load('./Databases/brutes.nosql') // TODO: change the ddos counter to db
 
   function ClearOldSessions () {
     for (var i = 0; i === admins.adminTokens.length; i++) {
